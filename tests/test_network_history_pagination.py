@@ -14,15 +14,6 @@ def save_history_record(client, timestamp, score, download_mbps=54.2):
     return response.json()["id"]
 
 
-def get_all_history(client):
-    response = client.get(
-        "/api/network-history",
-        params={"range": "all"},
-    )
-    assert response.status_code == 200
-    return response.json()
-
-
 def test_pagination_returns_ordered_pages_without_duplicates(client):
     timestamp = "2026-11-01T10:00:00.000Z"
     inserted_ids = [
@@ -49,6 +40,10 @@ def test_pagination_returns_ordered_pages_without_duplicates(client):
         assert pagination["limit"] == 2
         assert pagination["offset"] == offset
         assert pagination["total"] == 5
+        assert pagination["has_more"] is (offset < 4)
+        assert pagination["next_offset"] == (
+            offset + 2 if offset < 4 else None
+        )
 
     assert pages == inserted_ids
 
