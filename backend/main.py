@@ -1212,6 +1212,14 @@ def save_network_test(data: NetworkTest):
 
 
 
+# ============================================================
+# NETWORK HISTORY
+# ============================================================
+
+DEFAULT_NETWORK_HISTORY_PAGE_SIZE = 100
+MAX_NETWORK_HISTORY_PAGE_SIZE = 500
+
+
 @app.get("/api/network-history")
 def get_network_history(
     range: str = "recent",
@@ -1219,6 +1227,17 @@ def get_network_history(
     end_date: date | None = None,
     min_score: float | None = Query(default=None, ge=0, le=100),
     max_score: float | None = Query(default=None, ge=0, le=100),
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=MAX_NETWORK_HISTORY_PAGE_SIZE,
+        description="Maximum number of records to return (1-500).",
+    ),
+    offset: int | None = Query(
+        default=None,
+        ge=0,
+        description="Number of matching records to skip.",
+    ),
 ):
     # Validate date range.
     if (
@@ -1253,32 +1272,29 @@ def get_network_history(
         # Preserve the existing time-range behaviour
         # whenever a custom date range is not supplied.
         if start_date is None and end_date is None:
-
             if range != "all":
+                range_windows = {
+                    "1h": timedelta(hours=1),
+                    "24h": timedelta(hours=24),
+                    "7d": timedelta(days=7),
+                    "recent": timedelta(days=1),
 
-                    range_windows = {
-                        "1h": timedelta(hours=1),
-                        "24h": timedelta(hours=24),
-                        "7d": timedelta(days=7),
-                        "recent": timedelta(days=1),
+                    # Preserve existing API range values for compatibility.
+                    "hourly": timedelta(hours=24),
+                    "daily": timedelta(days=7),
+                    "weekly": timedelta(days=30),
+                    "monthly": timedelta(days=365),
+                }
 
-                        # Preserve existing API range values for compatibility.
-                        "hourly": timedelta(hours=24),
-                        "daily": timedelta(days=7),
-                        "weekly": timedelta(days=30),
-                        "monthly": timedelta(days=365),
-                    }
+                duration = range_windows.get(
+                    range,
+                    timedelta(days=1),
+                )
 
-                    duration = range_windows.get(
-                        range,
-                        timedelta(days=1),
-                    )
+                since = datetime.now() - duration
 
-                    since = datetime.now() - duration
-
-                    conditions.append("timestamp >= ?")
-                    parameters.append(since.isoformat())
-
+                conditions.append("timestamp >= ?")
+                parameters.append(since.isoformat())
         else:
             if start_date is not None:
                 conditions.append("timestamp >= ?")
@@ -1300,7 +1316,7 @@ def get_network_history(
             parameters.append(max_score)
 
         query = """
-             SELECT
+            SELECT
                 id,
                 timestamp,
                 download_mbps,
@@ -1315,13 +1331,56 @@ def get_network_history(
             FROM network_tests
         """
 
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
+        where_clause = (
+            " WHERE " + " AND ".join(conditions)
+            if conditions
+            else ""
+        )
+        query += where_clause
 
-        query += " ORDER BY timestamp ASC"
+        pagination_requested = limit is not None or offset is not None
 
-        cursor.execute(query, parameters)
+        if pagination_requested:
+            page_limit = (
+                limit
+                if limit is not None
+                else DEFAULT_NETWORK_HISTORY_PAGE_SIZE
+            )
+            page_offset = offset if offset is not None else 0
 
+            # Count the complete filtered result set before applying LIMIT/OFFSET.
+            count_query = (
+                "SELECT COUNT(*) FROM network_tests" + where_clause
+            )
+            cursor.execute(count_query, parameters)
+            total = cursor.fetchone()[0]
+
+            # The id tie-breaker keeps pages stable when timestamps are identical.
+            cursor.execute(
+                query + " ORDER BY timestamp ASC, id ASC LIMIT ? OFFSET ?",
+                parameters + [page_limit, page_offset],
+            )
+            records = [dict(row) for row in cursor.fetchall()]
+
+            next_offset = page_offset + len(records)
+            has_more = next_offset < total
+
+            return {
+                "data": records,
+                "pagination": {
+                    "limit": page_limit,
+                    "offset": page_offset,
+                    "total": total,
+                    "has_more": has_more,
+                    "next_offset": next_offset if has_more else None,
+                },
+            }
+
+        # Calls that omit pagination parameters keep the original list response.
+        cursor.execute(
+            query + " ORDER BY timestamp ASC, id ASC",
+            parameters,
+        )
         rows = cursor.fetchall()
 
         return [dict(row) for row in rows]
@@ -1330,8 +1389,6 @@ def get_network_history(
         connection.close()
 
 
-
-# ============================================================
 # AI STATUS
 # ============================================================
 
