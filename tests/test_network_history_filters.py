@@ -345,3 +345,24 @@ def test_all_range_includes_recent_and_old_history(client):
         record["connectivity_score"]
         for record in results
     ] == [40, 80]
+
+
+
+def test_unsupported_range_is_rejected(client):
+    response = client.get("/api/network-history?range=bogus")
+
+    assert response.status_code == 422
+    assert "Unsupported range" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "range_value",
+    [
+        "all", "recent", "1h", "24h", "7d",
+        "hourly", "daily", "weekly", "monthly",
+    ],
+)
+def test_supported_range_values_are_accepted(client, range_value):
+    response = client.get(f"/api/network-history?range={range_value}")
+
+    assert response.status_code == 200
