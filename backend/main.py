@@ -1210,6 +1210,17 @@ def save_network_test(data: NetworkTest):
 # ============================================================
 
 
+HISTORY_RANGE_WINDOWS = {
+    "1h": timedelta(hours=1),
+    "24h": timedelta(hours=24),
+    "7d": timedelta(days=7),
+    "recent": timedelta(days=1),
+    # Preserve existing API range values for compatibility.
+    "hourly": timedelta(hours=24),
+    "daily": timedelta(days=7),
+    "weekly": timedelta(days=30),
+    "monthly": timedelta(days=365),
+}
 
 
 @app.get("/api/network-history")
@@ -1220,6 +1231,13 @@ def get_network_history(
     min_score: float | None = Query(default=None, ge=0, le=100),
     max_score: float | None = Query(default=None, ge=0, le=100),
 ):
+    if range != "all" and range not in HISTORY_RANGE_WINDOWS:
+        supported = ", ".join(["all", *HISTORY_RANGE_WINDOWS])
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported range '{range}'. Supported values: {supported}",
+        )
+
     # Validate date range.
     if (
         start_date is not None
@@ -1253,31 +1271,12 @@ def get_network_history(
         # Preserve the existing time-range behaviour
         # whenever a custom date range is not supplied.
         if start_date is None and end_date is None:
-
             if range != "all":
+                duration = HISTORY_RANGE_WINDOWS[range]
+                since = datetime.now() - duration
+                conditions.append("timestamp >= ?")
+                parameters.append(since.isoformat())
 
-                    range_windows = {
-                        "1h": timedelta(hours=1),
-                        "24h": timedelta(hours=24),
-                        "7d": timedelta(days=7),
-                        "recent": timedelta(days=1),
-
-                        # Preserve existing API range values for compatibility.
-                        "hourly": timedelta(hours=24),
-                        "daily": timedelta(days=7),
-                        "weekly": timedelta(days=30),
-                        "monthly": timedelta(days=365),
-                    }
-
-                    duration = range_windows.get(
-                        range,
-                        timedelta(days=1),
-                    )
-
-                    since = datetime.now() - duration
-
-                    conditions.append("timestamp >= ?")
-                    parameters.append(since.isoformat())
 
         else:
             if start_date is not None:
