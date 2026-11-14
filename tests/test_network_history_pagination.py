@@ -194,3 +194,56 @@ def test_invalid_pagination_parameters_are_rejected(client):
             params={"range": "all", **params},
         )
         assert response.status_code == 422
+
+
+
+def test_pagination_uses_first_page_when_only_limit_is_supplied(client):
+    inserted_ids = [
+        save_history_record(
+            client,
+            f"2026-11-0{index + 1}T10:00:00.000Z",
+            70 + index,
+        )
+        for index in range(4)
+    ]
+
+    response = client.get(
+        "/api/network-history",
+        params={"range": "all", "limit": 2},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [record["id"] for record in payload["data"]] == inserted_ids[:2]
+    assert payload["pagination"] == {
+        "limit": 2,
+        "offset": 0,
+        "total": 4,
+        "has_more": True,
+        "next_offset": 2,
+    }
+
+
+def test_pagination_handles_unusually_large_offset(client):
+    save_history_record(client, "2026-11-01T10:00:00.000Z", 80)
+
+    response = client.get(
+        "/api/network-history",
+        params={
+            "range": "all",
+            "limit": 25,
+            "offset": 1_000_000,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "data": [],
+        "pagination": {
+            "limit": 25,
+            "offset": 1_000_000,
+            "total": 1,
+            "has_more": False,
+            "next_offset": None,
+        },
+    }
