@@ -1219,6 +1219,19 @@ def save_network_test(data: NetworkTest):
 DEFAULT_NETWORK_HISTORY_PAGE_SIZE = 100
 MAX_NETWORK_HISTORY_PAGE_SIZE = 500
 
+# Keep supported history ranges in one place for validation and filtering.
+HISTORY_RANGE_WINDOWS = {
+    "1h": timedelta(hours=1),
+    "24h": timedelta(hours=24),
+    "7d": timedelta(days=7),
+    "recent": timedelta(days=1),
+    # Preserve existing API range values for compatibility.
+    "hourly": timedelta(hours=24),
+    "daily": timedelta(days=7),
+    "weekly": timedelta(days=30),
+    "monthly": timedelta(days=365),
+}
+
 
 @app.get("/api/network-history")
 def get_network_history(
@@ -1239,10 +1252,16 @@ def get_network_history(
         description="Number of matching records to skip.",
     ),
 ):
+    if range != "all" and range not in HISTORY_RANGE_WINDOWS:
+        supported = ", ".join(["all", *HISTORY_RANGE_WINDOWS])
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported range '{range}'. Supported values: {supported}",
+        )
+
     # Validate date range.
     if (
-        start_date is not None
-        and end_date is not None
+        start_date is not None        and end_date is not None
         and start_date > end_date
     ):
         raise HTTPException(
@@ -1273,23 +1292,7 @@ def get_network_history(
         # whenever a custom date range is not supplied.
         if start_date is None and end_date is None:
             if range != "all":
-                range_windows = {
-                    "1h": timedelta(hours=1),
-                    "24h": timedelta(hours=24),
-                    "7d": timedelta(days=7),
-                    "recent": timedelta(days=1),
-
-                    # Preserve existing API range values for compatibility.
-                    "hourly": timedelta(hours=24),
-                    "daily": timedelta(days=7),
-                    "weekly": timedelta(days=30),
-                    "monthly": timedelta(days=365),
-                }
-
-                duration = range_windows.get(
-                    range,
-                    timedelta(days=1),
-                )
+                duration = HISTORY_RANGE_WINDOWS[range]
 
                 since = datetime.now() - duration
 
