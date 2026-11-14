@@ -247,3 +247,51 @@ def test_pagination_handles_unusually_large_offset(client):
             "next_offset": None,
         },
     }
+
+def test_database_connections_close_after_paginated_and_legacy_responses(
+    client,
+    monkeypatch,
+):
+    import backend.main as main
+
+    save_history_record(
+        client,
+        "2026-11-01T10:00:00.000Z",
+        80,
+    )
+
+    original_get_connection = main.get_connection
+    tracked_connections = []
+
+    class TrackingConnection:
+        def __init__(self):
+            self.connection = original_get_connection()
+            self.closed = False
+
+        def __getattr__(self, name):
+            return getattr(self.connection, name)
+
+        def close(self):
+            self.closed = True
+            self.connection.close()
+
+    def get_tracking_connection():
+        connection = TrackingConnection()
+        tracked_connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(main, "get_connection", get_tracking_connection)
+
+    paginated = client.get(
+        "/api/network-history",
+        params={"range": "all", "limit": 1},
+    )
+    legacy = client.get(
+        "/api/network-history",
+        params={"range": "all"},
+    )
+
+    assert paginated.status_code == 200
+    assert legacy.status_code == 200
+    assert len(tracked_connections) == 2
+    assert all(connection.closed for connection in tracked_connections)
