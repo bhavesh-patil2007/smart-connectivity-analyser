@@ -455,22 +455,46 @@ body {
     box-shadow: 0 0 0 4px rgba(148, 163, 184, .14);
 }
 
-.status-dot.connected {
+.status-dot.connected,
+.status-dot.online,
+.status-dot.excellent,
+.status-dot.good {
     background: #22c55e;
 
     box-shadow: 0 0 0 4px rgba(34, 197, 94, .14);
 }
 
-.status-dot.disconnected {
+.status-dot.disconnected,
+.status-dot.offline,
+.status-dot.poor {
     background: #ef4444;
 
     box-shadow: 0 0 0 4px rgba(239, 68, 68, .14);
 }
 
-.status-dot.testing {
+.status-dot.testing,
+.status-dot.fair {
     background: #f59e0b;
 
     box-shadow: 0 0 0 4px rgba(245, 158, 11, .14);
+}
+
+.status-label.connected,
+.status-label.online,
+.status-label.excellent,
+.status-label.good {
+    color: #15803d;
+}
+
+.status-label.disconnected,
+.status-label.offline,
+.status-label.poor {
+    color: #b91c1c;
+}
+
+.status-label.testing,
+.status-label.fair {
+    color: #b45309;
 }
 
 /* =========================================================
