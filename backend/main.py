@@ -1272,7 +1272,8 @@ def get_network_history(
 
     # Validate date range.
     if (
-        start_date is not None        and end_date is not None
+        start_date is not None
+        and end_date is not None
         and start_date > end_date
     ):
         raise HTTPException(
