@@ -1478,17 +1478,41 @@ def _run_ai_analysis(component_name, analysis):
     """Run one AI component without interrupting the other."""
     try:
         result = analysis()
-        return {"success": True, "data": result, "error": None}
+        # Keep the original successful payload fields at their existing
+        # top-level locations while adding a normalized result envelope.
+        payload = result if isinstance(result, dict) else {"result": result}
+        return {
+            **payload,
+            "success": True,
+            "data": result,
+            "error": None,
+        }
     except HTTPException as error:
-        detail = error.detail
-        if not isinstance(detail, str):
-            detail = "The analysis could not be completed."
+        unavailable = error.status_code == 503 or error.status_code < 500
+        if error.status_code == 503:
+            message = "The AI analysis component is currently unavailable."
+        elif error.status_code >= 500:
+            # Server-side exception details can contain paths or other internals.
+            message = (
+                "The analysis could not be completed due to an internal error."
+            )
+        else:
+            message = (
+                error.detail
+                if isinstance(error.detail, str)
+                else "The analysis could not be completed."
+            )
+
         return {
             "success": False,
             "data": None,
             "error": {
-                "code": "analysis_unavailable" if error.status_code < 500 else "analysis_failed",
-                "message": detail,
+                "code": (
+                    "analysis_unavailable"
+                    if unavailable
+                    else "analysis_failed"
+                ),
+                "message": message,
                 "status_code": error.status_code,
             },
         }
