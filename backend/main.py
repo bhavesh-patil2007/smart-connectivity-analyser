@@ -1210,6 +1210,17 @@ def save_network_test(data: NetworkTest):
 # ============================================================
 
 
+HISTORY_RANGE_WINDOWS = {
+    "1h": timedelta(hours=1),
+    "24h": timedelta(hours=24),
+    "7d": timedelta(days=7),
+    "recent": timedelta(days=1),
+    # Preserve existing API range values for compatibility.
+    "hourly": timedelta(hours=24),
+    "daily": timedelta(days=7),
+    "weekly": timedelta(days=30),
+    "monthly": timedelta(days=365),
+}
 
 
 # ============================================================

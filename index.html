@@ -215,19 +215,43 @@
       min-width: 0;
     }
 
-    .status-dot.connected {
+    .status-dot.connected,
+    .status-dot.online,
+    .status-dot.excellent,
+    .status-dot.good {
       background: #22c55e;
       box-shadow: 0 0 0 4px rgba(34,197,94,.14);
     }
 
-    .status-dot.disconnected {
+    .status-dot.disconnected,
+    .status-dot.offline,
+    .status-dot.poor {
       background: #ef4444;
       box-shadow: 0 0 0 4px rgba(239,68,68,.14);
     }
 
-    .status-dot.testing {
+    .status-dot.testing,
+    .status-dot.fair {
       background: #f59e0b;
       box-shadow: 0 0 0 4px rgba(245,158,11,.14);
+    }
+
+    .status-label.connected,
+    .status-label.online,
+    .status-label.excellent,
+    .status-label.good {
+      color: #15803d;
+    }
+
+    .status-label.disconnected,
+    .status-label.offline,
+    .status-label.poor {
+      color: #b91c1c;
+    }
+
+    .status-label.testing,
+    .status-label.fair {
+      color: #b45309;
     }
 
     #toast.show {
@@ -343,7 +367,7 @@
 
       <div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
         <span id="networkStatusDot" class="status-dot"></span>
-        <span id="status" aria-live="polite">Not Connected</span>
+        <span id="status" class="status-label" aria-live="polite">Not Connected</span>
       </div>
     </div>
 
@@ -352,7 +376,7 @@
       <span class="text-slate-500 font-semibold pb-1">/ 100</span>
     </div>
 
-    <div class="score-meter" role="progressbar" aria-label="Connectivity score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div id="scoreMeter" class="score-meter" role="progressbar" aria-label="Connectivity score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
       <div id="scoreProgress" class="score-meter-fill"></div>
     </div>
 
@@ -375,7 +399,7 @@
 
     <div>
       <h2 id="metricsHeading" class="text-lg font-bold">Real-Time Network Metrics</h2>
-      <p class="text-xs text-slate-500">Live performance measurements</p>
+      <p id="metricsSubtitle" class="text-xs text-slate-500">Live performance measurements</p>
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -413,7 +437,7 @@
       <article class="metric-card rounded-xl bg-white/55 p-4">
         <p class="text-xs font-semibold text-slate-500">NETWORK TYPE</p>
         <p class="metric-value mt-2"><span id="networkType">—</span></p>
-        <p class="text-xs text-slate-500">Connection type</p>
+        <p class="text-xs text-slate-500" id="networkTypeDetail">Connection type</p>
       </article>
 
     </div>
