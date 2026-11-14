@@ -244,6 +244,11 @@ def test_all_range_returns_complete_history(client):
         ("1h", timedelta(hours=2), timedelta(minutes=30)),
         ("24h", timedelta(hours=30), timedelta(hours=12)),
         ("7d", timedelta(days=8), timedelta(days=3)),
+        # Compatibility range values must keep their existing windows.
+        ("hourly", timedelta(hours=30), timedelta(hours=12)),
+        ("daily", timedelta(days=8), timedelta(days=3)),
+        ("weekly", timedelta(days=31), timedelta(days=15)),
+        ("monthly", timedelta(days=366), timedelta(days=30)),
     ],
 )
 def test_history_time_ranges_filter_correctly(
@@ -350,6 +355,20 @@ def test_all_range_includes_recent_and_old_history(client):
 
 def test_unsupported_range_is_rejected(client):
     response = client.get("/api/network-history?range=bogus")
+
+    assert response.status_code == 422
+    assert "Unsupported range" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"range": "bogus", "start_date": "2026-11-01"},
+        {"range": "bogus", "end_date": "2026-11-05"},
+    ],
+)
+def test_unsupported_range_with_custom_dates_is_rejected(client, params):
+    response = client.get("/api/network-history", params=params)
 
     assert response.status_code == 422
     assert "Unsupported range" in response.json()["detail"]
