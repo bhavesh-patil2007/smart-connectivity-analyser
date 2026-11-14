@@ -2005,7 +2005,14 @@ async function updateAISectionsFromBackend() {
 
         const result = await response.json();
 
-        if (!result?.success) {
+        // Partial success is useful: render whichever component completed.
+        // Older backend responses did not include "available", so retain their
+        // previous success-based handling as a compatibility fallback.
+        const resultsAvailable = typeof result?.available === "boolean"
+            ? result.available
+            : Boolean(result?.success);
+
+        if (!resultsAvailable) {
             const prediction = $("predictionResult");
             if (prediction) {
                 prediction.textContent =
@@ -2015,10 +2022,16 @@ async function updateAISectionsFromBackend() {
             return;
         }
 
-        const predictionData = result.prediction || {};
-        const anomalyData = result.anomaly || {};
+        const predictionResult = result.prediction || {};
+        const anomalyResult = result.anomaly || {};
+
+        // New responses expose both a data envelope and the old fields.
+        // Old responses can still be read directly.
+        const predictionData = predictionResult.data || predictionResult;
+        const anomalyData = anomalyResult.data || anomalyResult;
 
         if (
+            predictionResult.success !== false &&
             predictionData.predicted_connectivity_score !== undefined
         ) {
             setText(
@@ -2029,7 +2042,10 @@ async function updateAISectionsFromBackend() {
             );
         }
 
-        if (typeof anomalyData.anomaly === "boolean") {
+        if (
+            anomalyResult.success !== false &&
+            typeof anomalyData.anomaly === "boolean"
+        ) {
             const error = safeNumber(
                 anomalyData.reconstruction_error
             );
