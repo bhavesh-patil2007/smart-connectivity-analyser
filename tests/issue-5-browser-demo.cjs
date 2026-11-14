@@ -32,6 +32,12 @@ async function openScenario(browser, scenario, viewport = { width: 1440, height:
   await page.addInitScript(() => {
     window.API_BASE = "http://127.0.0.1:8000/api";
   });
+
+  // The browser scenarios use mocked API responses and do not depend on
+  // third-party CDN assets. Block external requests so a slow or unavailable
+  // font/script CDN cannot stall DOMContentLoaded in CI.
+  await page.route("https://**/*", (route) => route.abort());
+
   await page.route("http://127.0.0.1:8000/api/**", async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith("/network-history")) {
